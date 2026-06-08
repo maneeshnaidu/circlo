@@ -71,7 +71,12 @@ export default function RegisterPage() {
     })
 
     if (signUpError || !authData.user) {
-      setError(signUpError?.message ?? 'Registration failed')
+      const status = (signUpError as { status?: number } | null)?.status
+      if (status === 429) {
+        setError('Too many sign-up attempts. Please wait a few minutes and try again.')
+      } else {
+        setError(signUpError?.message ?? 'Registration failed')
+      }
       return
     }
 
