@@ -1,0 +1,6 @@
+onlyBuiltDependencies:
+  - "@tailwindcss/oxide"
+  - "@prisma/engines"
+  - esbuild
+  - prisma
+  - sharp

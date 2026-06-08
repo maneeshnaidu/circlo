@@ -1,0 +1,175 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+model Organisation {
+  id        String   @id @default(cuid())
+  name      String
+  abn       String?
+  nzbn      String?
+  sector    String
+  planTier  PlanTier @default(DEMO)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+  suppliers Supplier[]
+  campaigns Campaign[]
+
+  @@map("organisations")
+}
+
+model User {
+  id             String    @id @default(cuid())
+  supabaseId     String    @unique
+  organisationId String
+  email          String    @unique
+  firstName      String
+  lastName       String
+  role           UserRole  @default(BUYER_VIEWER)
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  lastLoginAt    DateTime?
+
+  organisation Organisation @relation(fields: [organisationId], references: [id])
+
+  @@map("users")
+}
+
+model Supplier {
+  id             String   @id @default(cuid())
+  organisationId String
+  name           String
+  contactEmail   String
+  contactName    String?
+  sector         String
+  country        String   @default("NZ")
+  tags           String[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organisation      Organisation       @relation(fields: [organisationId], references: [id])
+  campaignSuppliers CampaignSupplier[]
+
+  @@map("suppliers")
+}
+
+model Campaign {
+  id                   String         @id @default(cuid())
+  organisationId       String
+  name                 String
+  questionnaireVersion String         @default("v1")
+  status               CampaignStatus @default(DRAFT)
+  createdAt            DateTime       @default(now())
+  dispatchedAt         DateTime?
+  closedAt             DateTime?
+
+  organisation      Organisation       @relation(fields: [organisationId], references: [id])
+  campaignSuppliers CampaignSupplier[]
+
+  @@map("campaigns")
+}
+
+model CampaignSupplier {
+  id             String         @id @default(cuid())
+  campaignId     String
+  supplierId     String
+  magicToken     String         @unique @default(cuid())
+  tokenExpiresAt DateTime
+  status         SupplierStatus @default(PENDING)
+  sentAt         DateTime?
+  completedAt    DateTime?
+  reminderCount  Int            @default(0)
+  lastReminderAt DateTime?
+
+  campaign  Campaign   @relation(fields: [campaignId], references: [id])
+  supplier  Supplier   @relation(fields: [supplierId], references: [id])
+  response  Response?
+  documents Document[]
+
+  @@map("campaign_suppliers")
+}
+
+model Response {
+  id                   String   @id @default(cuid())
+  campaignSupplierId   String   @unique
+  answersJson          Json
+  submittedAt          DateTime @default(now())
+  questionnaireVersion String
+
+  campaignSupplier CampaignSupplier @relation(fields: [campaignSupplierId], references: [id])
+  score            Score?
+
+  @@map("responses")
+}
+
+model Score {
+  id                 String    @id @default(cuid())
+  responseId         String    @unique
+  overallScore       Decimal   @db.Decimal(5, 2)
+  band               ScoreBand
+  materialsScore     Decimal   @db.Decimal(5, 2)
+  wasteScore         Decimal   @db.Decimal(5, 2)
+  energyWaterScore   Decimal   @db.Decimal(5, 2)
+  productDesignScore Decimal   @db.Decimal(5, 2)
+  governanceScore    Decimal   @db.Decimal(5, 2)
+  recommendations    String[]
+  createdAt          DateTime  @default(now())
+
+  response Response @relation(fields: [responseId], references: [id])
+
+  @@map("scores")
+}
+
+model Document {
+  id                 String   @id @default(cuid())
+  campaignSupplierId String
+  fileName           String
+  storageKey         String
+  contentType        String
+  fileSizeBytes      Int
+  uploadedAt         DateTime @default(now())
+
+  campaignSupplier CampaignSupplier @relation(fields: [campaignSupplierId], references: [id])
+
+  @@map("documents")
+}
+
+enum PlanTier {
+  DEMO
+  STARTER
+  GROWTH
+  ENTERPRISE
+}
+
+enum UserRole {
+  BUYER_ADMIN
+  BUYER_VIEWER
+  PLATFORM_ADMIN
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+}
+
+enum SupplierStatus {
+  PENDING
+  SENT
+  OPENED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum ScoreBand {
+  DEVELOPING
+  PROGRESSING
+  ADVANCING
+  LEADING
+}
